@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>First Line Foundation — Tulsa Patrol Zones</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Arial Narrow', Arial, sans-serif; background: #0a2042; }
+  #header {
+    background: #0a2042;
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 2px solid #c9a84c;
+  }
+  #header .title { color: #fff; font-size: 16px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  #header .sub { color: #8b92ac; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 2px; }
+  #header .badge { background: rgba(201,168,76,0.15); border: 1px solid #c9a84c; color: #c9a84c; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 4px 12px; border-radius: 4px; }
+  #map { width: 100%; height: calc(100vh - 58px); }
+  .leaflet-popup-content-wrapper { border-radius: 6px; box-shadow: 0 2px 12px rgba(10,32,66,0.25); border: 1px solid #dde2ec; }
+  .leaflet-popup-content { margin: 10px 14px; font-family: 'Arial Narrow', Arial, sans-serif; }
+  .leaflet-control-attribution { font-size: 9px !important; background: rgba(255,255,255,0.7) !important; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div>
+    <div class="title">First Line Foundation</div>
+    <div class="sub">Tulsa Community Safety Zones</div>
+  </div>
+  <div class="badge">Patrol Route Map</div>
+</div>
+
+<div id="map"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const map = L.map('map', {
+  center: [36.105, -95.945],
+  zoom: 12,
+  zoomControl: true,
+  scrollWheelZoom: true
+});
+
+// CartoDB Positron — clean, minimal, no referer issues
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/">CARTO</a>',
+  subdomains: 'abcd',
+  maxZoom: 19
+}).addTo(map);
+
+// Subtle labels only layer
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+  attribution: '',
+  subdomains: 'abcd',
+  maxZoom: 19,
+  opacity: 0.55
+}).addTo(map);
+
+const C1 = { route: '#0a2042', heat: '#0a2042', dot: '#0a2042' };
+const C2 = { route: '#c9a84c', heat: '#c9a84c', dot: '#9a7a20' };
+
+const route1 = [
+  { num: 'Store 85', addr: '3230 E Admiral Pl, Tulsa OK 74115', lat: 36.1604, lng: -95.9413 },
+  { num: 'Store 7',  addr: '7 N Yale Ave, Tulsa OK 74115',       lat: 36.1601, lng: -95.9216 },
+  { num: 'Store 44', addr: '519 N Sheridan Rd, Tulsa OK 74115',  lat: 36.1649, lng: -95.9040 },
+  { num: 'Store 8',  addr: '7878 E Admiral Pl, Tulsa OK 74115',  lat: 36.1600, lng: -95.8874 },
+];
+
+const route2 = [
+  { num: 'Store 107', addr: '807 W 71st St S, Tulsa OK 74132',   lat: 36.0618, lng: -96.0025 },
+  { num: 'Store 45',  addr: '1415 E 71st St, Tulsa OK 74136',    lat: 36.0613, lng: -95.9728 },
+  { num: 'Store 96',  addr: '9555 Riverside Dr, Tulsa OK 74137', lat: 36.0267, lng: -95.9501 },
+];
+
+function heatZone(lat, lng, c) {
+  [[1600,0.07],[950,0.11],[480,0.16],[210,0.22]].forEach(([r,op]) => {
+    L.circle([lat, lng], {
+      radius: r, color: 'none',
+      fillColor: c.heat, fillOpacity: op, weight: 0
+    }).addTo(map);
+  });
+}
+
+function drawRoute(stores, c, label) {
+  const coords = stores.map(s => [s.lat, s.lng]);
+
+  // Glow layers
+  [38, 22, 10].forEach((w, i) => {
+    L.polyline(coords, {
+      color: c.route, weight: w,
+      opacity: [0.04, 0.07, 0.12][i],
+      lineJoin: 'round', lineCap: 'round'
+    }).addTo(map);
+  });
+
+  // Route line
+  L.polyline(coords, {
+    color: c.route, weight: 2.5,
+    opacity: 0.85, lineJoin: 'round', lineCap: 'round'
+  }).addTo(map);
+
+  stores.forEach((s, i) => {
+    heatZone(s.lat, s.lng, c);
+
+    L.circleMarker([s.lat, s.lng], {
+      radius: 15, fillColor: c.heat,
+      color: 'none', fillOpacity: 0.14
+    }).addTo(map);
+
+    L.circleMarker([s.lat, s.lng], {
+      radius: 9, fillColor: c.dot,
+      color: '#fff', weight: 2.5, fillOpacity: 1
+    }).addTo(map).bindPopup(`
+      <div style="font-weight:700;font-size:14px;color:${c.dot};">${s.num}</div>
+      <div style="font-size:12px;color:#555;margin-top:3px;">${s.addr}</div>
+      <div style="font-size:11px;color:${c.dot};margin-top:6px;font-weight:600;">${label} — Stop ${i+1} of ${stores.length}</div>
+    `);
+
+    L.marker([s.lat, s.lng], {
+      icon: L.divIcon({
+        className: '',
+        html: `<div style="background:${c.dot};color:#fff;border:2.5px solid #fff;border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;font-family:Arial,sans-serif;margin-left:-9px;margin-top:-9px;box-shadow:0 1px 4px rgba(0,0,0,0.2);">${i+1}</div>`,
+        iconSize: [18, 18]
+      })
+    }).addTo(map);
+  });
+}
+
+drawRoute(route1, C1, 'Route 1');
+drawRoute(route2, C2, 'Route 2');
+
+const legend = L.control({ position: 'bottomright' });
+legend.onAdd = () => {
+  const d = L.DomUtil.create('div');
+  d.style.cssText = 'background:#0a2042;padding:14px 18px;border-radius:8px;font-family:Arial Narrow,Arial,sans-serif;font-size:12px;line-height:2.2;box-shadow:0 2px 16px rgba(10,32,66,0.4);min-width:220px;border:1px solid rgba(139,146,172,0.2);';
+  d.innerHTML = `
+    <div style="font-weight:700;font-size:10px;letter-spacing:1px;color:#8b92ac;margin-bottom:8px;text-transform:uppercase;">Community Safety Zones</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="display:inline-block;width:24px;height:3px;background:#8b92ac;border-radius:2px;flex-shrink:0;"></span>
+      <span style="color:#fff;font-weight:700;">Route 1</span>
+      <span style="color:#8b92ac;font-size:11px;">85 &rarr; 7 &rarr; 44 &rarr; 8</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <span style="display:inline-block;width:24px;height:3px;background:#c9a84c;border-radius:2px;flex-shrink:0;"></span>
+      <span style="color:#c9a84c;font-weight:700;">Route 2</span>
+      <span style="color:#8b92ac;font-size:11px;">107 &rarr; 45 &rarr; 96</span>
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(139,146,172,0.2);font-size:10px;color:#8b92ac;line-height:1.6;">
+      Zones indicate patrol coverage radius.<br>Click any marker for store details.
+    </div>
+  `;
+  return d;
+};
+legend.addTo(map);
+</script>
+</body>
+</html>
