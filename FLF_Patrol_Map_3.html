@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>First Line Foundation — Patrol Zone Map</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #0D1B2A; }
+
+  .header {
+    background: #0D1B2A;
+    border-bottom: 3px solid #C9A84C;
+    padding: 16px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .header-left .org {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #C9A84C;
+    margin-bottom: 3px;
+  }
+  .header-left .title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #FFFFFF;
+    letter-spacing: 0.5px;
+  }
+  .header-right {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 5px 11px;
+    border-radius: 3px;
+  }
+  .badge-gold { background: #C9A84C; color: #0D1B2A; }
+  .badge-green { background: #1A6B3C; color: #fff; }
+
+  #map { width: 100%; height: calc(100vh - 118px); }
+
+  .footer {
+    background: #0D1B2A;
+    border-top: 2px solid #1A3148;
+    padding: 10px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-text { font-size: 10px; color: #6B6A63; letter-spacing: 0.5px; }
+  .footer-conf { font-size: 9px; color: #C9A84C; letter-spacing: 1.5px; text-transform: uppercase; }
+
+  /* Route legend */
+  .route-legend {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+  .route-item { display: flex; align-items: center; gap: 7px; }
+  .route-line {
+    width: 28px; height: 4px; border-radius: 2px;
+  }
+  .route-label { font-size: 11px; font-weight: 600; color: #FFFFFF; }
+  .route-sub { font-size: 9px; color: #6B6A63; margin-left: 2px; }
+
+  /* Popup styles */
+  .leaflet-popup-content-wrapper {
+    border-radius: 5px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    border: none;
+    padding: 0;
+    overflow: hidden;
+  }
+  .leaflet-popup-content { margin: 0; min-width: 180px; }
+  .popup-inner { padding: 12px 15px; }
+  .popup-store { font-size: 13px; font-weight: 700; color: #0D1B2A; margin-bottom: 3px; }
+  .popup-addr { font-size: 11px; color: #6B6A63; margin-bottom: 6px; }
+  .popup-tag {
+    display: inline-block;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    margin-bottom: 2px;
+  }
+  .popup-route { font-size: 10px; color: #AEB0AA; margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="org">First Line Foundation</div>
+    <div class="title">Community Safety Patrol Zones — Tulsa Pilot</div>
+  </div>
+  <div class="header-right">
+    <div class="route-legend">
+      <div class="route-item">
+        <div class="route-line" style="background:#185FA5;"></div>
+        <span class="route-label">Route 1</span>
+        <span class="route-sub">Admiral Corridor</span>
+      </div>
+      <div class="route-item">
+        <div class="route-line" style="background:#C9913A;"></div>
+        <span class="route-label">Route 2</span>
+        <span class="route-sub">Midtown / 71st</span>
+      </div>
+    </div>
+    <div class="badge badge-green">LMI / CRA — Route 1</div>
+    <div class="badge badge-gold">May 1 – July 31, 2026</div>
+  </div>
+</div>
+
+<div id="map"></div>
+
+<div class="footer">
+  <div class="footer-text">First Line Foundation  ·  firstlinefoundation.org  ·  Will Mortensen, COO  ·  918-770-3051</div>
+  <div class="footer-conf">Confidential — Pilot Documentation</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const map = L.map('map', {
+  center: [36.105, -95.97],
+  zoom: 12,
+  zoomControl: true,
+  scrollWheelZoom: true
+});
+
+// Clean light basemap — no labels overload
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CartoDB',
+  subdomains: 'abcd', maxZoom: 19
+}).addTo(map);
+
+// Subtle labels layer
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png', {
+  attribution: '', subdomains: 'abcd', maxZoom: 19, opacity: 0.5
+}).addTo(map);
+
+// ── DATA ─────────────────────────────────────────────────────────────────
+const route1 = [
+  { num:'Store 85', addr:'3230 E Admiral Pl, 74115', lat:36.1604, lng:-95.9413, lmi:true },
+  { num:'Store 7',  addr:'7 N Yale Ave, 74115',      lat:36.1601, lng:-95.9216, lmi:true },
+  { num:'Store 44', addr:'519 N Sheridan Rd, 74115', lat:36.1649, lng:-95.9040, lmi:true },
+  { num:'Store 8',  addr:'7878 E Admiral Pl, 74115', lat:36.1600, lng:-95.8874, lmi:true },
+];
+
+const route2 = [
+  { num:'Store 1',  addr:'4970 S Peoria Ave, 74105', lat:36.0906, lng:-95.9768, lmi:false },
+  { num:'Store 30', addr:'5111 S Lewis Ave, 74105',  lat:36.0890, lng:-95.9573, lmi:false },
+  { num:'Store 41', addr:'4950 S Harvard Ave, 74135',lat:36.0920, lng:-95.9411, lmi:false },
+  { num:'Store 45', addr:'1415 E 71st St, 74136',    lat:36.0613, lng:-95.9728, lmi:false },
+];
+
+const C1 = { line:'#185FA5', dot:'#185FA5', heat:'#185FA5' };
+const C2 = { line:'#C9913A', dot:'#C9913A', heat:'#C9913A' };
+
+// ── HEAT ZONES ────────────────────────────────────────────────────────────
+function heatZone(lat, lng, color) {
+  [900, 550, 280].forEach((r, i) => {
+    L.circle([lat, lng], {
+      radius: r,
+      color: color, weight: 0,
+      fillColor: color,
+      fillOpacity: [0.05, 0.09, 0.16][i]
+    }).addTo(map);
+  });
+}
+
+// ── ROUTES ────────────────────────────────────────────────────────────────
+function addRoute(stores, C, routeLabel) {
+  // Dashed patrol path
+  const coords = stores.map(s => [s.lat, s.lng]);
+  L.polyline(coords, {
+    color: C.line, weight: 3, opacity: 0.55, dashArray: '7 5'
+  }).addTo(map);
+
+  // Direction arrow mid-route
+  stores.forEach((s, i) => {
+    heatZone(s.lat, s.lng, C.heat);
+
+    const lmiHtml = s.lmi
+      ? `<span class="popup-tag" style="background:#1A6B3C;color:#fff;">LMI Zone — CRA Eligible</span>`
+      : `<span class="popup-tag" style="background:#E8E6E0;color:#6B6A63;">South Tulsa</span>`;
+
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="
+        width:28px;height:28px;border-radius:50%;
+        background:${C.dot};border:2.5px solid #fff;
+        display:flex;align-items:center;justify-content:center;
+        color:#fff;font-size:11px;font-weight:700;
+        font-family:sans-serif;
+        box-shadow:0 2px 6px rgba(0,0,0,0.25);">${i+1}</div>`,
+      iconSize: [28, 28], iconAnchor: [14, 14]
+    });
+
+    const popupContent = `
+      <div style="background:${C.dot};height:4px;"></div>
+      <div class="popup-inner">
+        <div class="popup-store">QuikTrip ${s.num}</div>
+        <div class="popup-addr">${s.addr}</div>
+        ${lmiHtml}
+        <div class="popup-route">${routeLabel} — Stop ${i+1} of ${stores.length}</div>
+      </div>`;
+
+    L.marker([s.lat, s.lng], { icon })
+      .addTo(map)
+      .bindPopup(popupContent, { maxWidth: 220 });
+  });
+}
+
+addRoute(route1, C1, 'Route 1 — Admiral Corridor');
+addRoute(route2, C2, 'Route 2 — Midtown / 71st');
+
+// ── LEGEND ────────────────────────────────────────────────────────────────
+const legend = L.control({ position: 'bottomright' });
+legend.onAdd = () => {
+  const d = L.DomUtil.create('div');
+  d.style.cssText = 'background:#fff;padding:12px 16px;border-radius:5px;font-family:sans-serif;font-size:11px;line-height:1.9;box-shadow:0 2px 8px rgba(0,0,0,0.15);min-width:220px;';
+  d.innerHTML = `
+    <div style="font-weight:700;font-size:10px;letter-spacing:1px;color:#444;margin-bottom:8px;text-transform:uppercase;">Patrol Routes</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <span style="display:inline-block;width:24px;height:3px;background:#185FA5;border-radius:2px;flex-shrink:0;"></span>
+      <span style="font-weight:700;color:#0D1B2A;">Route 1</span>
+      <span style="color:#888;font-size:10px;">Stores 85, 7, 44, 8</span>
+      <span style="background:#1A6B3C;color:#fff;font-size:8px;font-weight:700;padding:1px 6px;border-radius:2px;letter-spacing:.5px;">LMI</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+      <span style="display:inline-block;width:24px;height:3px;background:#C9913A;border-radius:2px;flex-shrink:0;"></span>
+      <span style="font-weight:700;color:#0D1B2A;">Route 2</span>
+      <span style="color:#888;font-size:10px;">Stores 1, 30, 41, 45</span>
+    </div>
+    <div style="border-top:1px solid #eee;padding-top:8px;font-size:9px;color:#aaa;">Click any marker for details</div>`;
+  return d;
+};
+legend.addTo(map);
+
+// ── PILOT BADGE ───────────────────────────────────────────────────────────
+const pilotInfo = L.control({ position: 'topleft' });
+pilotInfo.onAdd = () => {
+  const d = L.DomUtil.create('div');
+  d.style.cssText = 'background:#0D1B2A;padding:10px 14px;border-radius:4px;font-family:sans-serif;border-left:3px solid #C9A84C;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
+  d.innerHTML = `
+    <div style="font-size:8.5px;font-weight:700;letter-spacing:2px;color:#C9A84C;text-transform:uppercase;margin-bottom:4px;">3-Month Pilot</div>
+    <div style="font-size:11px;color:#fff;font-weight:600;">8 QuikTrip Locations</div>
+    <div style="font-size:10px;color:#AEB0AA;margin-top:2px;">May 1 – July 31, 2026</div>
+    <div style="font-size:10px;color:#AEB0AA;">11,040 officer-hours</div>`;
+  return d;
+};
+pilotInfo.addTo(map);
+</script>
+</body>
+</html>
